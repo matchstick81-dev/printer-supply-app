@@ -63,6 +63,7 @@ def get_items(category: str, brand: str):
 
 # 데이터 모델
 class Item(BaseModel):
+    category: str
     item: str
     qty: int
 
@@ -130,6 +131,7 @@ def download_excel():
                         "날짜": entry["savedAt"],
                         "공사번호": entry["projectNumber"],
                         "프린터": entry["printerModel"],
+                        "구분": item.get("category", ""),
                         "소모품": item["item"],
                         "수량": item["qty"],
                         "소속": entry["department"],
