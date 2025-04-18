@@ -104,7 +104,7 @@ def get_logs(
         if file.endswith(".json"):
             with open(f"data/{file}", encoding="utf-8") as f:
                 entry = json.load(f)
-                entry["signaturePath"] = "/" + entry["signaturePath"].replace("\", "/")
+                entry["signaturePath"] = "/" + entry["signaturePath"].replace("\\", "/")
                 logs.append(entry)
 
     if keyword:
