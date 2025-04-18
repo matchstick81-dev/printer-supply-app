@@ -1,6 +1,6 @@
 from fastapi import FastAPI, Query
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse, FileResponse
+from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from typing import List
@@ -21,8 +21,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# 정적 파일 mount
+# 정적 폴더 mount
 app.mount("/static", StaticFiles(directory="static"), name="static")
+app.mount("/signatures", StaticFiles(directory="signatures"), name="signatures")
 
 @app.get("/", response_class=FileResponse)
 def serve_form():
