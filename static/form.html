@@ -2,11 +2,216 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>소모품 교체 입력</title>
+  <script src="https://cdn.jsdelivr.net/npm/signature_pad@4.1.5/dist/signature_pad.umd.min.js"></script>
+  <style>
+    body {
+      margin: 0;
+      padding: 20px;
+      font-family: 'Segoe UI', sans-serif;
+      background-color: #f4f6f8;
+    }
+    .container {
+      max-width: 640px;
+      margin: auto;
+      background: #fff;
+      padding: 30px;
+      border-radius: 12px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+    }
+    h2 {
+      text-align: center;
+      color: #333;
+    }
+    label {
+      margin-top: 20px;
+      display: block;
+      font-weight: 600;
+      margin-bottom: 6px;
+      color: #444;
+    }
+    input, select {
+      width: 100%;
+      padding: 10px;
+      font-size: 15px;
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      margin-bottom: 10px;
+    }
+    canvas {
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      width: 100%;
+      height: 150px;
+      background-color: #fff;
+    }
+    .item-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+    .item-row select, .item-row input {
+      flex: 1;
+    }
+    .manualItemInput {
+      display: none;
+    }
+    .item-row button {
+      background-color: #f44336;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      padding: 8px 12px;
+      cursor: pointer;
+    }
+    button {
+      background-color: #4CAF50;
+      color: white;
+      font-size: 16px;
+      padding: 12px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      width: 100%;
+      margin-top: 10px;
+    }
+    button.secondary {
+      background-color: #999;
+    }
+  </style>
 </head>
 <body>
-  <h2>소모품 교체 입력 폼</h2>
-  <p>이 페이지는 FastAPI에서 서빙되고 있습니다.</p>
+  <div class="container">
+    <h2>소모품 교체 입력</h2>
+
+    <label>공사번호</label>
+    <input type="text" id="projectNumber" placeholder="예: 2024-PRJ-001" />
+
+    <label>프린터 모델명</label>
+    <input type="text" id="printerModel" placeholder="예: Canon MF645Cx" />
+
+    <div id="itemsArea"></div>
+    <button type="button" class="secondary" onclick="addItem()">+ 소모품 추가</button>
+
+    <label>소속</label>
+    <input type="text" id="department" placeholder="예: 본사" />
+
+    <label>부서</label>
+    <input type="text" id="team" placeholder="예: 전산팀" />
+
+    <label>이름 (정자)</label>
+    <input type="text" id="userName" placeholder="예: 홍길동" />
+
+    <label>서명</label>
+    <canvas id="signature"></canvas>
+    <button type="button" class="secondary" onclick="clearSignature()">서명 지우기</button>
+
+    <button onclick="submitForm()">제출</button>
+  </div>
+
+  <script>
+    let categories = [], brands = [];
+    let signaturePad;
+
+    async function fetchMeta() {
+      categories = await (await fetch('/api/categories')).json();
+      brands = await (await fetch('/api/brands')).json();
+    }
+
+    function addItem() {
+      const div = document.createElement("div");
+      div.className = "item-row";
+
+      const categorySel = document.createElement("select");
+      const brandSel = document.createElement("select");
+      const itemSel = document.createElement("select");
+      const manualInput = document.createElement("input");
+      const qtyInput = document.createElement("input");
+      const delBtn = document.createElement("button");
+
+      categorySel.innerHTML = '<option value="">구분</option>' + categories.map(c => `<option>${c}</option>`).join('');
+      brandSel.innerHTML = '<option value="">제조사</option>' + brands.map(b => `<option>${b}</option>`).join('');
+      itemSel.innerHTML = '<option value="">소모품명</option>';
+
+      manualInput.type = "text";
+      manualInput.placeholder = "직접 입력";
+      manualInput.className = "manualItemInput";
+
+      qtyInput.type = "number";
+      qtyInput.placeholder = "수량";
+
+      delBtn.textContent = "삭제";
+      delBtn.onclick = () => div.remove();
+
+      itemSel.onchange = () => {
+        manualInput.style.display = (itemSel.value === "직접 입력") ? "block" : "none";
+      };
+
+      categorySel.onchange = brandSel.onchange = async () => {
+        const cat = categorySel.value;
+        const brand = brandSel.value;
+        if (cat && brand) {
+          const items = await (await fetch(`/api/items?category=${cat}&brand=${brand}`)).json();
+          items.push("직접 입력");
+          itemSel.innerHTML = items.map(i => `<option>${i}</option>`).join('');
+          itemSel.dispatchEvent(new Event("change"));
+        }
+      };
+
+      div.append(categorySel, brandSel, itemSel, manualInput, qtyInput, delBtn);
+      document.getElementById("itemsArea").appendChild(div);
+    }
+
+    function clearSignature() {
+      if (signaturePad) signaturePad.clear();
+    }
+
+   function submitForm() {
+  if (signaturePad.isEmpty()) {
+    alert("서명이 비어있습니다. 서명을 입력해주세요.");
+    return;
+  }
+
+  const data = {
+    projectNumber: document.getElementById("projectNumber").value,
+    printerModel: document.getElementById("printerModel").value,
+    department: document.getElementById("department").value,
+    team: document.getElementById("team").value,
+    userName: document.getElementById("userName").value,
+    items: [],
+    signature: signaturePad.toDataURL()
+  };
+
+  document.querySelectorAll(".item-row").forEach(row => {
+    const itemSel = row.querySelector("select:nth-child(3)");
+    const manualInput = row.querySelector(".manualItemInput");
+    const qty = row.querySelector("input[type='number']").value;
+    const item = (itemSel.value === "직접 입력") ? manualInput.value : itemSel.value;
+    if (item && qty) data.items.push({ item, qty });
+  });
+
+  fetch("/api/save", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(data)
+  }).then(res => {
+    if (res.ok) alert("저장 완료!");
+  });
+}
+
+
+    fetchMeta();
+
+    // 서명패드 초기화
+    window.onload = function () {
+      const canvas = document.getElementById("signature");
+      signaturePad = new SignaturePad(canvas, {
+        backgroundColor: "#fff",
+        penColor: "black"
+      });
+    };
+  </script>
 </body>
 </html>

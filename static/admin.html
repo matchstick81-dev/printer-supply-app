@@ -1,1 +1,154 @@
-<admin.html - 리디자인된 관리자 페이지 삽입>
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <title>관리자 페이지</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: #f5f7fa;
+      margin: 0;
+      padding: 20px;
+    }
+    .container {
+      max-width: 1200px;
+      margin: auto;
+      background: #fff;
+      padding: 30px;
+      border-radius: 12px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+    }
+    h2 {
+      text-align: center;
+      color: #333;
+    }
+    .filters {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 20px;
+      justify-content: space-between;
+    }
+    .filters input {
+      padding: 8px;
+      font-size: 14px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      flex: 1;
+      min-width: 160px;
+    }
+    .filters button {
+      padding: 10px 16px;
+      font-size: 14px;
+      border: none;
+      background: #4CAF50;
+      color: #fff;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+    }
+    th, td {
+      padding: 10px;
+      text-align: left;
+      border-bottom: 1px solid #eee;
+    }
+    th {
+      background: #f0f0f0;
+      cursor: pointer;
+    }
+    tr:hover {
+      background: #f9f9f9;
+    }
+    img {
+      max-height: 60px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>소모품 교체 내역</h2>
+
+    <div class="filters">
+      <input type="text" id="search" placeholder="검색 (공사번호, 프린터, 이름)">
+      <input type="date" id="start">
+      <input type="date" id="end">
+      <button onclick="loadLogs()">조회</button>
+      <button onclick="downloadExcel()">엑셀 다운로드</button>
+    </div>
+
+    <table>
+      <thead>
+        <tr>
+          <th onclick="sortTable('savedAt')">날짜</th>
+          <th>공사번호</th>
+          <th>프린터</th>
+          <th>소모품</th>
+          <th>소속</th>
+          <th>부서</th>
+          <th>이름</th>
+          <th>서명</th>
+        </tr>
+      </thead>
+      <tbody id="logBody"></tbody>
+    </table>
+  </div>
+
+  <script>
+    let logs = [];
+    let sortKey = "savedAt";
+    let sortAsc = false;
+
+    async function loadLogs() {
+      const q = document.getElementById("search").value;
+      const start = document.getElementById("start").value;
+      const end = document.getElementById("end").value;
+      const res = await fetch(`/api/logs?q=${q}&start=${start}&end=${end}`);
+      logs = await res.json();
+      renderTable();
+    }
+
+    function renderTable() {
+      const body = document.getElementById("logBody");
+      body.innerHTML = "";
+      const sorted = [...logs].sort((a, b) => {
+        const v1 = a[sortKey];
+        const v2 = b[sortKey];
+        return sortAsc ? v1.localeCompare(v2) : v2.localeCompare(v1);
+      });
+      sorted.forEach(e => {
+        const row = document.createElement("tr");
+        row.innerHTML = `
+          <td>${e.savedAt}</td>
+          <td>${e.projectNumber}</td>
+          <td>${e.printerModel}</td>
+          <td>${e.items.map(i => `${i.item}(${i.qty})`).join(', ')}</td>
+          <td>${e.department}</td>
+          <td>${e.team}</td>
+          <td>${e.userName}</td>
+          <td><img src="${e.signaturePath}" alt="서명"></td>
+        `;
+        body.appendChild(row);
+      });
+    }
+
+    function sortTable(key) {
+      sortKey = key;
+      sortAsc = !sortAsc;
+      renderTable();
+    }
+
+    function downloadExcel() {
+      window.location.href = "/api/download";
+    }
+
+    loadLogs();
+  </script>
+</body>
+</html>
